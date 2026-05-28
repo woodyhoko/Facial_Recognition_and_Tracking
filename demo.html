@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facial Recognition + ECO Tracking — Pipeline Demo</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:#0d1117;color:#e6edf3;font-family:"Segoe UI",system-ui,sans-serif;padding:20px;min-height:100vh}
+  h1{font-size:20px;margin-bottom:4px;color:#ffd166}
+  .sub{color:#8b949e;font-size:13px;margin-bottom:20px}
+  .layout{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start}
+  @media(max-width:700px){.layout{grid-template-columns:1fr}}
+  .card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:16px;margin-bottom:14px}
+  h2{font-size:12px;color:#8b949e;margin-bottom:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  canvas{display:block;border-radius:8px;background:#0a0a0c;border:2px solid #30363d}
+  .stage{display:flex;align-items:flex-start;gap:10px;padding:10px;border-radius:8px;margin-bottom:8px;border:1px solid transparent;transition:.4s}
+  .stage.idle{background:#0d1117}
+  .stage.run{background:#1c2d1c;border-color:#ffd16650}
+  .stage.done{background:#1a2020;border-color:#3fb95040}
+  .stage.skip{background:#21262d;opacity:.55}
+  .stage-icon{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex:0 0 30px;background:#21262d;transition:.3s}
+  .stage.run .stage-icon{background:#ffd166;color:#0d1117}
+  .stage.done .stage-icon{background:#3fb950;color:#0d1117}
+  .stage-info{flex:1}
+  .stage-name{font-size:13px;font-weight:600}
+  .stage-sub{font-size:11px;color:#8b949e;margin-top:2px}
+  .stage.run .stage-sub{color:#ffd16699}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+  .stat{background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:10px;text-align:center}
+  .stat .lbl{font-size:11px;color:#8b949e}
+  .stat .val{font-size:16px;font-weight:700;color:#ffd166;font-variant-numeric:tabular-nums}
+  .btns{display:flex;gap:8px;margin-bottom:16px}
+  button{padding:8px 16px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;transition:.15s}
+  .btn-p{background:#ffd166;color:#0d1117}
+  .btn-p:hover{filter:brightness(1.08)}
+  .btn-s{background:#21262d;color:#e6edf3}
+  .btn-s:hover{background:#2d333b}
+  .identity-box{font-size:12px;background:#0d1117;border-radius:8px;padding:8px 10px;border:1px solid #30363d;margin-top:8px;min-height:40px;font-family:monospace}
+</style>
+</head>
+<body>
+<h1>Facial Recognition + ECO Tracking</h1>
+<p class="sub">Viola-Jones detection → PCA-FLDA recognition → ECO conservative tracker. Simulates the pipeline on an animated scene.</p>
+
+<div class="btns">
+  <button class="btn-p" id="startBtn">▶ Start Simulation</button>
+  <button class="btn-s" id="resetBtn">↺ Reset</button>
+  <button class="btn-s" id="newFaceBtn">👤 New Face</button>
+</div>
+
+<div class="layout">
+  <div>
+    <canvas id="scene" width="380" height="280"></canvas>
+    <div class="stats">
+      <div class="stat"><div class="lbl">Frame</div><div class="val" id="frameNum">0</div></div>
+      <div class="stat"><div class="lbl">Detect calls</div><div class="val" id="detectCnt">0</div></div>
+      <div class="stat"><div class="lbl">Track confidence</div><div class="val" id="trackConf">—</div></div>
+      <div class="stat"><div class="lbl">Saved compute</div><div class="val" id="savedPct">0%</div></div>
+    </div>
+  </div>
+  <div>
+    <div class="card">
+      <h2>Pipeline Stages</h2>
+      <div class="stage idle" id="ps0"><div class="stage-icon">🔲</div><div class="stage-info"><div class="stage-name">Viola-Jones Detection</div><div class="stage-sub">Haar cascade — detect face bounding box. Runs every 15 frames or on track loss.</div></div></div>
+      <div class="stage idle" id="ps1"><div class="stage-icon">🔑</div><div class="stage-info"><div class="stage-name">PCA Eigenface Projection</div><div class="stage-sub">Reduce 256²px face crop to 128-dim eigenface vector via PCA.</div></div></div>
+      <div class="stage idle" id="ps2"><div class="stage-icon">🎯</div><div class="stage-info"><div class="stage-name">FLDA Classification</div><div class="stage-sub">Fisher's LDA maximizes between-class / within-class variance for identity.</div></div></div>
+      <div class="stage idle" id="ps3"><div class="stage-icon">📡</div><div class="stage-info"><div class="stage-name">ECO Tracker Update</div><div class="stage-sub">Factorized conv operator propagates bounding box between recognition events.</div></div></div>
+      <div class="identity-box" id="identBox">Awaiting detection…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const cv = document.getElementById('scene'), ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+const NAMES = ['Alice', 'Bob', 'Carol', 'David', 'Eve', 'Frank'];
+let running = false, raf = null, frame = 0, detectCount = 0, savedFrames = 0;
+let face = { x: 80, y: 80, w: 100, h: 100, vx: 1.2, vy: 0.8, name: 'Alice', conf: 0.97, recognized: false, ecoConf: 0 };
+
+function rndFace() { face.name = NAMES[(Math.random() * NAMES.length) | 0]; face.conf = 0.85 + Math.random() * 0.14; face.recognized = false; face.ecoConf = 0; }
+
+async function setStage(id, state, detail) {
+  ['ps0','ps1','ps2','ps3'].forEach((s, i) => { const el = document.getElementById(s); el.className = 'stage ' + (i < id ? 'done' : i === id ? state : 'idle'); });
+  if (detail) document.getElementById('p'+['s0','s1','s2','s3'][id]).querySelector('.stage-sub').textContent = detail;
+}
+
+function drawScene(showEco) {
+  ctx.clearRect(0, 0, W, H);
+  // background — simulated room
+  ctx.fillStyle = '#0e1218'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#14191f'; ctx.fillRect(0, H * 0.65, W, H);
+  ctx.strokeStyle = '#21262d'; ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H * 0.65); ctx.stroke(); }
+
+  // person body (simple silhouette)
+  const fcx = face.x + face.w / 2, fcy = face.y + face.h / 2;
+  ctx.fillStyle = '#2a2a3a';
+  ctx.beginPath(); ctx.ellipse(fcx, fcy + face.h, face.w * 0.45, face.h * 0.7, 0, 0, Math.PI * 2); ctx.fill();
+  // head (skin tone)
+  ctx.fillStyle = '#c68642';
+  ctx.beginPath(); ctx.ellipse(fcx, fcy, face.w / 2, face.h / 2, 0, 0, Math.PI * 2); ctx.fill();
+  // features
+  ctx.fillStyle = '#0d1117';
+  ctx.beginPath(); ctx.ellipse(fcx - face.w * 0.18, fcy - face.h * 0.05, face.w * 0.08, face.h * 0.06, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(fcx + face.w * 0.18, fcy - face.h * 0.05, face.w * 0.08, face.h * 0.06, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(fcx, fcy + face.h * 0.2, face.w * 0.15, 0, Math.PI); ctx.stroke();
+
+  // detection box (blue)
+  if (!showEco) {
+    ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2; ctx.setLineDash([5, 3]);
+    ctx.strokeRect(face.x, face.y, face.w, face.h); ctx.setLineDash([]);
+    ctx.fillStyle = '#58a6ff'; ctx.font = '12px sans-serif'; ctx.fillText('Detecting…', face.x, face.y - 6);
+  } else {
+    // ECO tracking box (gold, solid)
+    ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2; ctx.strokeRect(face.x, face.y, face.w, face.h);
+    // corner markers
+    const cs = 12;
+    [face.x, face.x + face.w - cs].forEach(bx => [face.y, face.y + face.h - cs].forEach(by => {
+      ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(bx + (bx < fcx ? 0 : cs), by); ctx.lineTo(bx + (bx < fcx ? cs : 0), by); ctx.moveTo(bx + (bx < fcx ? 0 : cs), by + cs); ctx.lineTo(bx + (bx < fcx ? 0 : cs), by); ctx.stroke();
+    }));
+    if (face.recognized) {
+      ctx.fillStyle = '#ffd166'; ctx.font = 'bold 13px sans-serif';
+      ctx.fillText(face.name + ' (' + (face.conf * 100).toFixed(0) + '%)', face.x, face.y - 7);
+      // ECO confidence bar
+      ctx.fillStyle = '#21262d'; ctx.fillRect(face.x, face.y + face.h + 4, face.w, 6);
+      ctx.fillStyle = face.ecoConf > 0.7 ? '#3fb950' : '#d29922';
+      ctx.fillRect(face.x, face.y + face.h + 4, face.w * face.ecoConf, 6);
+    }
+  }
+}
+
+let pipeState = 'idle';
+async function runPipeline() {
+  pipeState = 'running';
+  detectCount++;
+  document.getElementById('detectCnt').textContent = detectCount;
+
+  setStage(0, 'run'); drawScene(false); await sleep(400);
+  setStage(1, 'run'); await sleep(350);
+  setStage(2, 'run'); await sleep(350);
+  face.recognized = true;
+  document.getElementById('identBox').innerHTML = `<span style="color:#ffd166">Identified: ${face.name}</span> | conf: ${face.conf.toFixed(3)} | eigenfaces: 128-dim | FLDA classes: ${NAMES.length}`;
+  setStage(3, 'run'); face.ecoConf = 0.6; await sleep(300);
+  setStage(3, 'done');
+  pipeState = 'tracking';
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+let trackTick = 0;
+function loop() {
+  if (!running) return;
+  frame++;
+  face.x += face.vx; face.y += face.vy;
+  if (face.x < 20 || face.x + face.w > W - 20) face.vx *= -1;
+  if (face.y < 20 || face.y + face.h > H - 80) face.vy *= -1;
+  face.ecoConf = Math.min(0.98, face.ecoConf + 0.008);
+  // ECO tracker update every frame after recognition; re-detect every 20 frames
+  if (pipeState === 'tracking') {
+    trackTick++;
+    if (trackTick % 20 === 0 && Math.random() > 0.3) { pipeState = 'idle'; face.recognized = false; face.ecoConf = 0; setStage(-1, 'idle'); }
+  }
+  if (pipeState === 'idle') { runPipeline(); }
+  drawScene(pipeState === 'tracking');
+  document.getElementById('frameNum').textContent = frame;
+  document.getElementById('trackConf').textContent = face.ecoConf > 0 ? (face.ecoConf * 100).toFixed(0) + '%' : '—';
+  savedFrames = Math.max(0, frame - detectCount);
+  document.getElementById('savedPct').textContent = frame > 0 ? Math.round(savedFrames / frame * 100) + '%' : '0%';
+  raf = requestAnimationFrame(loop);
+}
+
+document.getElementById('startBtn').onclick = () => {
+  if (running) { running = false; cancelAnimationFrame(raf); document.getElementById('startBtn').textContent = '▶ Start Simulation'; }
+  else { running = true; document.getElementById('startBtn').textContent = '⏸ Pause'; loop(); }
+};
+document.getElementById('resetBtn').onclick = () => { running = false; cancelAnimationFrame(raf); frame = 0; detectCount = 0; savedFrames = 0; trackTick = 0; pipeState = 'idle'; face.recognized = false; face.ecoConf = 0; document.getElementById('startBtn').textContent = '▶ Start Simulation'; document.getElementById('identBox').textContent = 'Awaiting detection…'; ['ps0','ps1','ps2','ps3'].forEach(s => document.getElementById(s).className = 'stage idle'); drawScene(false); };
+document.getElementById('newFaceBtn').onclick = () => { rndFace(); pipeState = 'idle'; face.ecoConf = 0; };
+drawScene(false);
+</script>
+</body>
+</html>
