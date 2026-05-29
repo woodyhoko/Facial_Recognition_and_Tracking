@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Facial Recognition + ECO Tracking</title>
+<meta name="description" content="Fusing Viola-Jones detection, PCA-FLDA recognition and the ECO visual tracker for continuous identity-aware tracking without per-frame recognition overhead.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#05080a;--ink:#d7ffe9;--muted:#6f9384;--g:#2dfb8a;--am:#ffb020;--rd:#ff4d5e;--line:rgba(45,251,138,.16)}
+  *{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:Rajdhani,system-ui,sans-serif;line-height:1.55;overflow-x:hidden}
+  a{color:inherit;text-decoration:none}
+  .bg{position:fixed;inset:0;z-index:0;background:radial-gradient(900px 600px at 70% 0,#0a1812 0,var(--bg) 60%)}
+  .scan{position:fixed;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(transparent 0 3px,rgba(45,251,138,.035) 3px 4px)}
+  .scanline{position:fixed;left:0;right:0;height:2px;z-index:1;background:linear-gradient(90deg,transparent,rgba(45,251,138,.6),transparent);animation:sweep 5s linear infinite}
+  @keyframes sweep{0%{top:0}100%{top:100%}}
+  .wrap{position:relative;z-index:3;max-width:1020px;margin:0 auto;padding:0 24px}
+  header{min-height:92vh;display:flex;flex-direction:column;justify-content:center;padding:80px 0 36px}
+  .tag{font-family:"Share Tech Mono";font-size:12px;letter-spacing:3px;color:var(--g);border:1px solid var(--line);padding:6px 14px;border-radius:4px;width:fit-content;margin-bottom:22px}
+  h1{font-weight:700;font-size:clamp(38px,7vw,82px);line-height:1;letter-spacing:1px;text-transform:uppercase}
+  h1 .hl{color:var(--g);text-shadow:0 0 24px rgba(45,251,138,.5)}
+  .lede{font-family:"Share Tech Mono";font-size:clamp(14px,1.7vw,17px);color:var(--muted);max-width:660px;margin:24px 0;line-height:1.8}
+  .by{font-family:"Share Tech Mono";font-size:13px;color:var(--am);margin-top:8px}
+  .cta{display:flex;flex-wrap:wrap;gap:13px;margin-top:30px}
+  .btn{font-family:"Share Tech Mono";display:inline-flex;align-items:center;gap:9px;padding:14px 24px;border-radius:4px;font-weight:400;font-size:14px;letter-spacing:1px;transition:.18s;border:1px solid var(--line);text-transform:uppercase}
+  .btn.p{background:var(--g);color:#04130c;border-color:var(--g)}.btn.p:hover{box-shadow:0 0 28px rgba(45,251,138,.6);transform:translateY(-2px)}
+  .btn.g{background:rgba(45,251,138,.04)}.btn.g:hover{border-color:var(--g);color:var(--g);transform:translateY(-2px)}
+  section{padding:48px 0}
+  .lbl{font-family:"Share Tech Mono";font-size:12px;letter-spacing:3px;color:var(--am);margin-bottom:8px}
+  .ttl{font-weight:700;font-size:clamp(22px,3.2vw,34px);text-transform:uppercase;letter-spacing:1px;margin-bottom:28px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px}
+  .c{position:relative;background:rgba(10,24,18,.6);border:1px solid var(--line);border-radius:8px;padding:24px;transition:.2s}
+  .c::before{content:"";position:absolute;top:8px;left:8px;width:14px;height:14px;border-top:2px solid var(--g);border-left:2px solid var(--g)}
+  .c::after{content:"";position:absolute;bottom:8px;right:8px;width:14px;height:14px;border-bottom:2px solid var(--g);border-right:2px solid var(--g)}
+  .c:hover{transform:translateY(-4px);box-shadow:0 0 26px rgba(45,251,138,.18)}
+  .c .k{font-family:"Share Tech Mono";font-size:12px;color:var(--g);letter-spacing:1px}
+  .c h3{font-weight:700;font-size:18px;margin:6px 0 8px}.c p{font-family:"Share Tech Mono";font-size:12.5px;color:var(--muted);line-height:1.7}
+  footer{border-top:1px solid var(--line);margin-top:50px;padding:38px 0 56px;text-align:center;color:var(--muted);font-family:"Share Tech Mono";font-size:13px}
+  footer a{color:var(--g)}.fl{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+</style></head>
+<body>
+<div class="bg"></div><div class="scan"></div><div class="scanline"></div>
+<div class="wrap">
+  <header>
+    <div class="tag">// IDENTITY-AWARE TRACKING SYSTEM</div>
+    <h1>Recognize once.<br><span class="hl">Track forever.</span></h1>
+    <p class="lede">Running face recognition on every frame is prohibitive — and fails the moment a subject turns away. This system runs recognition only when needed and hands spatial continuity to the ECO tracker: identity-aware tracking at a fraction of the compute.</p>
+    <p class="by">&gt; MACHINE LEARNING GROUP 14 · CSIE, NATIONAL CENTRAL UNIVERSITY</p>
+    <div class="cta">
+      <a class="btn p" href="demo.html">▶ RUN PIPELINE DEMO</a>
+      <a class="btn g" href="https://github.com/woodyhoko/Facial_Recognition_and_Tracking/blob/main/facial%20recognition%20and%20tracking%20-%20final%20report.pdf">📄 FINAL REPORT</a>
+      <a class="btn g" href="https://github.com/woodyhoko/Facial_Recognition_and_Tracking#readme">📖 DOCS</a>
+    </div>
+  </header>
+
+  <section>
+    <div class="lbl">// COMPONENTS</div>
+    <div class="ttl">Three engines, one box.</div>
+    <div class="grid">
+      <div class="c"><div class="k">[ DETECT ]</div><h3>Viola-Jones</h3><p>Cascade of boosted Haar-feature classifiers over an integral image. &gt;30fps on CPU; fires every N frames or on track failure.</p></div>
+      <div class="c"><div class="k">[ RECOGNIZE ]</div><h3>PCA → FLDA</h3><p>Eigenfaces compress 65K→128 dims; Fisherfaces maximize between-class scatter — robust to illumination. Runs once per new face.</p></div>
+      <div class="c"><div class="k">[ TRACK ]</div><h3>ECO-HC</h3><p>Factorized correlation filter + GMM sample model + conservative updates. Propagates the box every frame, carrying the identity label.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="fl"><a href="demo.html">DEMO</a><a href="https://github.com/woodyhoko/Facial_Recognition_and_Tracking">GITHUB</a><a href="https://github.com/woodyhoko/Facial_Recognition_and_Tracking#readme">README</a></div>
+    BUILT BY <a href="https://github.com/woodyhoko">woodyhoko</a> · REAL-TIME FACIAL RECOGNITION + ECO TRACKING
+  </footer>
+</div>
+</body></html>
