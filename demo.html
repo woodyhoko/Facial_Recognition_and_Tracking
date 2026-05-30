@@ -37,11 +37,15 @@
   .btn-s{background:#21262d;color:#e6edf3}
   .btn-s:hover{background:#2d333b}
   .identity-box{font-size:12px;background:#0d1117;border-radius:8px;padding:8px 10px;border:1px solid #30363d;margin-top:8px;min-height:40px;font-family:monospace}
+  .notice{background:#1d1606;border:1px solid #ffd16655;border-left:4px solid #ffd166;border-radius:10px;padding:12px 14px;margin-bottom:18px;font-size:13px;line-height:1.55;color:#f0e2c0}
+  .notice b{color:#ffd166}
 </style>
 </head>
 <body>
 <h1>Facial Recognition + ECO Tracking</h1>
-<p class="sub">Viola-Jones detection → PCA-FLDA recognition → ECO conservative tracker. Simulates the pipeline on an animated scene.</p>
+<p class="sub">Viola-Jones detection → PCA-FLDA recognition → ECO conservative tracker.</p>
+
+<div class="notice">⚠️ <b>This is an explanatory visualization, not the real pipeline.</b> The "face" below is a drawn animation and the stage timings/confidences are illustrative — no Viola-Jones, PCA-FLDA, or ECO code actually runs here. It exists to <b>show how the components hand off to each other</b> (recognize once → track many frames). The actual implementation and results live in the <a href="https://github.com/woodyhoko/Facial_Recognition_and_Tracking" style="color:#ffd166">project repository</a> and <a href="paper.html" style="color:#ffd166">final report</a>.</div>
 
 <div class="btns">
   <button class="btn-p" id="startBtn">▶ Start Simulation</button>

@@ -39,6 +39,13 @@
   .c h3{font-weight:700;font-size:18px;margin:6px 0 8px}.c p{font-family:"Share Tech Mono";font-size:12.5px;color:var(--muted);line-height:1.7}
   footer{border-top:1px solid var(--line);margin-top:50px;padding:38px 0 56px;text-align:center;color:var(--muted);font-family:"Share Tech Mono";font-size:13px}
   footer a{color:var(--g)}.fl{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
+  @media(max-width:640px){
+    .wrap{padding:0 18px}
+    header{min-height:auto;padding:56px 0 28px}
+    .cta{gap:10px}.btn{padding:13px 16px;font-size:13px;flex:1 1 100%;justify-content:center}
+    section{padding:34px 0}.c{padding:20px}
+    .grid{grid-template-columns:1fr}
+  }
 </style></head>
 <body>
 <div class="bg"></div><div class="scan"></div><div class="scanline"></div>
@@ -49,7 +56,7 @@
     <p class="lede">Running face recognition on every frame is prohibitive — and fails the moment a subject turns away. This system runs recognition only when needed and hands spatial continuity to the ECO tracker: identity-aware tracking at a fraction of the compute.</p>
     <p class="by">&gt; MACHINE LEARNING GROUP 14 · CSIE, NATIONAL CENTRAL UNIVERSITY</p>
     <div class="cta">
-      <a class="btn p" href="demo.html">▶ RUN PIPELINE DEMO</a>
+      <a class="btn p" href="demo.html">▶ PIPELINE VISUALIZER</a>
       <a class="btn g" href="paper.html">📄 FINAL REPORT</a>
       <a class="btn g" href="docs.html">📖 DOCS</a>
     </div>
